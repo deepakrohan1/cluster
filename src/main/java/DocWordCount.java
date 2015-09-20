@@ -17,12 +17,12 @@ import java.io.IOException;
 import java.util.regex.Pattern;
 
 
-public class WordCount extends Configured implements Tool {
+public class DocWordCount extends Configured implements Tool {
 
-   private static final Logger LOG = Logger .getLogger( WordCount.class);
+   private static final Logger LOG = Logger .getLogger( DocWordCount.class);
 
    public static void main( String[] args) throws  Exception {
-      int res  = ToolRunner .run( new WordCount(), args);
+      int res  = ToolRunner .run( new DocWordCount(), args);
       System .exit(res);
    }
 
@@ -62,7 +62,7 @@ public class WordCount extends Configured implements Tool {
                continue;
             }
             
-            currentWord  = new Text(word+"####"+fileName);
+            currentWord  = new Text(word+"####$$$"+fileName);
             context.write(currentWord,one);
          }
       }
