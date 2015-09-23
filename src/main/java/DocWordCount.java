@@ -16,6 +16,12 @@ import org.apache.log4j.Logger;
 import java.io.IOException;
 import java.util.regex.Pattern;
 
+/**
+ * @author Deepak Rohan Sekar
+ * @date 23 September 2015
+ * @version 1.0
+ * @file DocWordCount.java
+ */
 
 public class DocWordCount extends Configured implements Tool {
 

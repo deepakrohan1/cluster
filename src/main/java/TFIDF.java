@@ -18,6 +18,12 @@ import java.io.IOException;
 import java.util.*;
 import java.util.regex.Pattern;
 
+/**
+ * @author Deepak Rohan Sekar
+ * @date 23 September 2015
+ * @version 1.0
+ * @file TFIDF.java
+ */
 
 public class TFIDF extends Configured implements Tool {
     static String key;
@@ -25,9 +31,9 @@ public class TFIDF extends Configured implements Tool {
     static String value1;
     static String value2;
     static String[] valuepairs;
-//    static int l =1 ;
     static HashSet<String> files = new HashSet<String>();
-//    static ArrayList<String> gettermFiles = new ArrayList<String>();
+
+
     private static final Logger LOG = Logger.getLogger(DocWordCount.class);
 
     public static void main(String[] args) throws Exception {
@@ -35,12 +41,18 @@ public class TFIDF extends Configured implements Tool {
         System.exit(res);
     }
 
+    /**
+     *
+     * @param args
+     * @return
+     * @throws Exception
+     */
     public int run(String[] args) throws Exception {
         Job job = Job.getInstance(getConf(), " wordcount ");
         job.setJarByClass(this.getClass());
         Job secondJob = Job.getInstance(getConf(), " tfidf ");
         FileInputFormat.addInputPaths(job, args[0]);
-        FileOutputFormat.setOutputPath(job, new Path(args[1]));
+        FileOutputFormat.setOutputPath(job, new Path(args[0]+"/temp"));
         job.setMapperClass(Map.class);
         job.setReducerClass(Reduce.class);
         job.setOutputKeyClass(Text.class);
@@ -49,8 +61,8 @@ public class TFIDF extends Configured implements Tool {
         if (job.waitForCompletion(true)) {
 
             secondJob.setJarByClass(this.getClass());
-            FileInputFormat.addInputPaths(secondJob, args[1]);
-            FileOutputFormat.setOutputPath(secondJob, new Path(args[1] + "/output1"));
+            FileInputFormat.addInputPaths(secondJob, args[0]+"/temp");
+            FileOutputFormat.setOutputPath(secondJob, new Path(args[1]));
             secondJob.setMapperClass(Map2.class);
             secondJob.setReducerClass(Reduce2.class);
             secondJob.setOutputKeyClass(Text.class);
@@ -59,7 +71,11 @@ public class TFIDF extends Configured implements Tool {
         return secondJob.waitForCompletion(true) ? 0 : 1;
     }
 
-
+    /**
+     *First Mapper Job to get the files in the input folder and split the words based on the pattern
+     * Once the split has been made each word is appended with #### and fileName and value of 1
+     * <Hadoop####file0, 1>Key value pairs of the mapper
+     */
     public static class Map extends Mapper<LongWritable, Text, Text, IntWritable> {
         private final static IntWritable one = new IntWritable(1);
         private Text word = new Text();
@@ -84,6 +100,10 @@ public class TFIDF extends Configured implements Tool {
         }
     }
 
+    /**
+     * The reducer uses the iterable to add up the occurances of the word in different input documents
+     * Calculation of the logarthimic frequency for the summed up values
+     */
     public static class Reduce extends Reducer<Text, IntWritable, Text, DoubleWritable> {
         @Override
         public void reduce(Text word, Iterable<IntWritable> counts, Context context)
@@ -97,16 +117,17 @@ public class TFIDF extends Configured implements Tool {
                     logValues = 0.0;
                 } else {
                     logValues = 1 + Math.log10(sum);
-//                    System.out.println(logValues);
                 }
             }
             context.write(word, new DoubleWritable(logValues));
         }
     }
 
-    //////
-
-
+    /**
+     * Map2 is another mapper job which uses the string tokenizer to split the input <Hadoop####file0,1.0>
+     * Once the split is done the word is sent as the key and value is the file name and frequency as <Hadoop,file0=1.0>
+     * The text ouput is then passed to the Reducer2 for final phase.
+     */
     public static class Map2 extends Mapper<LongWritable, Text, Text, Text> {
         private final static IntWritable one = new IntWritable(1);
         private Text word = new Text();
@@ -141,15 +162,17 @@ public class TFIDF extends Configured implements Tool {
 
                 i++;
             }
-//            System.out.println(key + "   ," + value1 + "=" + value2);
-//            System.out.println("#############################");
             currentWord = new Text(key);
             valuePair = new Text(value1 + "=" + value2);
-
             context.write(currentWord, valuePair);
         }
     }
 
+    /**
+     * Reduce 2 is used to calculate the IDF and TFIDF for a given word
+     * The output is Text which has the word and DoubleWritable which has the TDIDF
+     * The format of the output is  <yellow####, TDIDF>
+     */
     public static class Reduce2 extends Reducer<Text, Text, Text, DoubleWritable> {
         @Override
         public void reduce(Text word, Iterable<Text> texts, Context context)
@@ -164,33 +187,19 @@ public class TFIDF extends Configured implements Tool {
 
 
             for (Text text : texts) {
-//                System.out.println(text.toString());
                 valuepairs = text.toString().split("=");
                 i++;
 
                 fileSet.put(valuepairs[0].toString(), valuepairs[1].toString());
-
-//                iDF = Math.log10(files.size() / (double) i);
-//                tFiDF = Double.parseDouble(valuepairs[1])*iDF;
-//                System.out.println("Word--" +word.toString()+"-----"+valuepairs[0]+" ," +valuepairs[1]+"iDF "+ iDF+"tFidF "+tFiDF);
-
                 }
                 for (String key : fileSet.keySet()){
                     iDF = Math.log10(files.size() / (double) i);
                     tFiDF = Double.parseDouble(fileSet.get(key))*iDF;
-
                     System.out.println(word+"--"+key + "--" +fileSet.get(key)+"--"+iDF+"--"+tFiDF);
                     wordFiles = new Text(word+"####"+key);
                     context.write(wordFiles,new DoubleWritable(tFiDF));
-
                 }
-
-
-
-//            System.out.println("word--"+word.toString()+"----"+valuepairs[0] + " and " + valuepairs[1] + " Total Docs " + files.size()
-//                    +" total "+total+ " Total Docs term"+i +" Inv Doc Fre "+iDF +" TFIDF "+tFiDF );
             }
-//            context.write(word, new DoubleWritable(logValues));
         }
     }
 
