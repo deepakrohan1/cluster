@@ -15,8 +15,7 @@ import org.apache.hadoop.util.ToolRunner;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.StringTokenizer;
+import java.util.*;
 import java.util.regex.Pattern;
 
 
@@ -26,7 +25,9 @@ public class TFIDF extends Configured implements Tool {
     static String value1;
     static String value2;
     static String[] valuepairs;
+//    static int l =1 ;
     static HashSet<String> files = new HashSet<String>();
+//    static ArrayList<String> gettermFiles = new ArrayList<String>();
     private static final Logger LOG = Logger.getLogger(DocWordCount.class);
 
     public static void main(String[] args) throws Exception {
@@ -55,10 +56,7 @@ public class TFIDF extends Configured implements Tool {
             secondJob.setOutputKeyClass(Text.class);
             secondJob.setOutputValueClass(Text.class);
         }
-
         return secondJob.waitForCompletion(true) ? 0 : 1;
-
-
     }
 
 
@@ -74,6 +72,7 @@ public class TFIDF extends Configured implements Tool {
             String line = lineText.toString();
             Text currentWord = new Text();
             String fileName = ((FileSplit) context.getInputSplit()).getPath().getName().toString();
+            files.add(fileName);
             for (String word : WORD_BOUNDARY.split(line)) {
                 if (word.isEmpty()) {
                     continue;
@@ -155,21 +154,41 @@ public class TFIDF extends Configured implements Tool {
         @Override
         public void reduce(Text word, Iterable<Text> texts, Context context)
                 throws IOException, InterruptedException {
+            HashMap<String, String> fileSet = new HashMap<String,String>();
 
-            System.out.println("Red2");
-            System.out.println(word);
+            int i =0;
+            Double iDF = 0.00;
+            Double tFiDF = 0.00;
 
-//            int sum  = 0;
-//            for ( IntWritable count  : counts) {
-//                sum  += count.get();
-//            }
+            Text wordFiles = new Text();
+
 
             for (Text text : texts) {
 //                System.out.println(text.toString());
                 valuepairs = text.toString().split("=");
-                files.add(valuepairs[0]);
-                System.out.println(valuepairs[0] + " and " + valuepairs[1]+" HashSet here "+files.size());
+                i++;
+
+                fileSet.put(valuepairs[0].toString(), valuepairs[1].toString());
+
+//                iDF = Math.log10(files.size() / (double) i);
+//                tFiDF = Double.parseDouble(valuepairs[1])*iDF;
+//                System.out.println("Word--" +word.toString()+"-----"+valuepairs[0]+" ," +valuepairs[1]+"iDF "+ iDF+"tFidF "+tFiDF);
+
                 }
+                for (String key : fileSet.keySet()){
+                    iDF = Math.log10(files.size() / (double) i);
+                    tFiDF = Double.parseDouble(fileSet.get(key))*iDF;
+
+                    System.out.println(word+"--"+key + "--" +fileSet.get(key)+"--"+iDF+"--"+tFiDF);
+                    wordFiles = new Text(word+"####"+key);
+                    context.write(wordFiles,new DoubleWritable(tFiDF));
+
+                }
+
+
+
+//            System.out.println("word--"+word.toString()+"----"+valuepairs[0] + " and " + valuepairs[1] + " Total Docs " + files.size()
+//                    +" total "+total+ " Total Docs term"+i +" Inv Doc Fre "+iDF +" TFIDF "+tFiDF );
             }
 //            context.write(word, new DoubleWritable(logValues));
         }
